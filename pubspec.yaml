@@ -1,0 +1,58 @@
+name: priyatam_kavya
+description: A premium spiritual reading application.
+publish_to: 'none'
+version: 2.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management
+  provider: ^6.1.2
+
+  # Persistence (theme mode, font size, bookmarks)
+  shared_preferences: ^2.3.2
+
+  # Elegant Google Fonts (Cormorant Garamond for display, Crimson Pro for body)
+  google_fonts: ^6.2.1
+
+  # Gallery photo viewer
+  photo_view: ^0.15.0
+
+  # Open pre-filled email composer from feedback form
+  url_launcher: ^6.3.1
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  flutter_native_splash: ^2.4.8
+  flutter_launcher_icons: ^0.14.4
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/images/sidebar/
+    - assets/images/gallery/
+    # ─────────────────────────────────────────────────────────────────────
+    # TO ADD YOUR ASSETS:
+    #   Logo       →  assets/images/logo.png
+    #   Gallery    →  assets/images/gallery/  (register subfolder too)
+    # ─────────────────────────────────────────────────────────────────────
+flutter_native_splash:
+  color: "#FAF6EE"          # Tera Cream Background
+  image: "assets/images/logo.png" # Tera Logo
+  android_12:
+    color: "#FAF6EE"
+    image: "assets/images/logo.png"
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/icon.png"
+  min_sdk_android: 21    
