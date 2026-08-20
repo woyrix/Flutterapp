@@ -2,12 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 
-class FontSizeSlider extends StatelessWidget {
+class FontSizeSlider extends StatefulWidget {
   const FontSizeSlider({super.key});
 
   @override
+  State<FontSizeSlider> createState() => _FontSizeSliderState();
+}
+
+class _FontSizeSliderState extends State<FontSizeSlider> {
+  double? _dragValue;
+
+  @override
   Widget build(BuildContext context) {
-    final app = context.watch<AppProvider>();
+    final app = context.read<AppProvider>();
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -31,28 +38,49 @@ class FontSizeSlider extends StatelessWidget {
             children: [
               Icon(Icons.text_decrease_rounded, size: 18, color: cs.primary),
               Expanded(
-                child: Slider(
-                  value: app.fontSize,
-                  min: AppProvider.minFont,
-                  max: AppProvider.maxFont,
-                  activeColor: cs.primary,
-                  inactiveColor: cs.primary.withOpacity(0.2),
-                  onChanged: (v) => app.setFontSize(v),
+                child: ValueListenableBuilder<double>(
+                  valueListenable: app.fontSizePreview,
+                  builder: (context, previewValue, _) {
+                    final value = _dragValue ?? previewValue;
+
+                    return Slider(
+                      value: value,
+                      min: AppProvider.minFont,
+                      max: AppProvider.maxFont,
+                      activeColor: cs.primary,
+                      inactiveColor: cs.primary.withOpacity(0.2),
+                      onChanged: (v) {
+                        _dragValue = v;
+                        app.previewFontSize(v);
+                      },
+                      onChangeEnd: (v) {
+                        _dragValue = null;
+                        app.commitFontSize(v);
+                      },
+                    );
+                  },
                 ),
               ),
               Icon(Icons.text_increase_rounded, size: 18, color: cs.primary),
               const SizedBox(width: 8),
-              Container(
-                width: 28,
-                alignment: Alignment.center,
-                child: Text(
-                  '${app.fontSize.round()}',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: cs.primary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+              ValueListenableBuilder<double>(
+                valueListenable: app.fontSizePreview,
+                builder: (context, previewValue, _) {
+                  final value = _dragValue ?? previewValue;
+
+                  return Container(
+                    width: 28,
+                    alignment: Alignment.center,
+                    child: Text(
+                      '${value.round()}',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: cs.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  );
+                },
               ),
             ],
           ),

@@ -59,7 +59,7 @@ class SocialLinksScreen extends StatelessWidget {
       type: _SocialLinkType.playlist,
     ),
     _SocialLink(
-      title: 'प्रियतम काव्य ॥ पूज्य श्रीनारायण दादा',
+      title: 'प्रियतम काव्य ॥ पूज्य श्रीनारायण दादा ॥',
       url:
           'https://youtube.com/playlist?list=PLqYHT-_FCLCM4Nv28wzFONYH6EYwjrm6d&si=m66nHJeL2UtEe6RC',
       imageUrl: '',

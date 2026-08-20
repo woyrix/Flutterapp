@@ -20,6 +20,17 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => openHomeDrawer());
   }
 
+  void _setTab(int value) {
+    if (_tab == value) return;
+    setState(() => _tab = value);
+  }
+
+  void _handleHorizontalSwipe(DragEndDetails details) {
+    final velocity = details.primaryVelocity ?? 0;
+    if (velocity.abs() < 220) return;
+    _setTab(velocity < 0 ? 1 : 0);
+  }
+
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppProvider>();
@@ -47,51 +58,55 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
             ),
           ),
         ),
-        body: ListView(
-          padding: const EdgeInsets.fromLTRB(22, 18, 22, 32),
-          children: [
-            Text(
-              'अपनी reading preference चुनें',
-              locale: const Locale('hi', 'IN'),
-              style: GoogleFonts.notoSerifDevanagari(
-                color: cs.onBackground.withOpacity(0.56),
-                fontSize: 13,
+        body: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onHorizontalDragEnd: _handleHorizontalSwipe,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(22, 18, 22, 32),
+            children: [
+              Text(
+                'अपनी reading preference चुनें',
+                locale: const Locale('hi', 'IN'),
+                style: GoogleFonts.notoSerifDevanagari(
+                  color: cs.onBackground.withOpacity(0.56),
+                  fontSize: 13,
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
-            _TabSwitch(
-              selected: _tab,
-              onChanged: (value) => setState(() => _tab = value),
-              cs: cs,
-            ),
-            const SizedBox(height: 26),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 180),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              transitionBuilder: (child, animation) {
-                final offset = Tween<Offset>(
-                  begin: const Offset(0.02, 0),
-                  end: Offset.zero,
-                ).animate(animation);
-                return FadeTransition(
-                  opacity: animation,
-                  child: SlideTransition(position: offset, child: child),
-                );
-              },
-              child: _tab == 0
-                  ? _ModeSection(
-                      key: const ValueKey('mode'),
-                      app: app,
-                      cs: cs,
-                    )
-                  : _ColourSection(
-                      key: const ValueKey('colour'),
-                      app: app,
-                      cs: cs,
-                    ),
-            ),
-          ],
+              const SizedBox(height: 20),
+              _TabSwitch(
+                selected: _tab,
+                onChanged: _setTab,
+                cs: cs,
+              ),
+              const SizedBox(height: 26),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 180),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (child, animation) {
+                  final offset = Tween<Offset>(
+                    begin: const Offset(0.02, 0),
+                    end: Offset.zero,
+                  ).animate(animation);
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(position: offset, child: child),
+                  );
+                },
+                child: _tab == 0
+                    ? _ModeSection(
+                        key: const ValueKey('mode'),
+                        app: app,
+                        cs: cs,
+                      )
+                    : _ColourSection(
+                        key: const ValueKey('colour'),
+                        app: app,
+                        cs: cs,
+                      ),
+              ),
+            ],
+          ),
         ),
       ),
     );

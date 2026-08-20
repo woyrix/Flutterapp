@@ -108,7 +108,7 @@ class _NavBtnState extends State<_NavBtn> with SingleTickerProviderStateMixin {
     super.initState();
     _ctrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 120),
+      duration: const Duration(milliseconds: 75),
     );
     _scale = Tween<double>(begin: 1.0, end: 0.8).animate(
       CurvedAnimation(parent: _ctrl, curve: Curves.easeIn),
@@ -128,13 +128,9 @@ class _NavBtnState extends State<_NavBtn> with SingleTickerProviderStateMixin {
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
+      onTap: widget.enabled ? widget.onTap : null,
       onTapDown: widget.enabled ? (_) => _ctrl.forward() : null,
-      onTapUp: widget.enabled
-          ? (_) async {
-              await _ctrl.reverse();
-              widget.onTap();
-            }
-          : null,
+      onTapUp: widget.enabled ? (_) => _ctrl.reverse() : null,
       onTapCancel: () => _ctrl.reverse(),
       onLongPress: widget.onLongPress == null
           ? null

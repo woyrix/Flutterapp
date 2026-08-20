@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AccentOption {
@@ -11,7 +12,7 @@ class AccentOption {
 class AppProvider extends ChangeNotifier {
   static const double minFont = 7.0;
   static const double maxFont = 34.0;
-  static const double defaultFont = 9.0;
+  static const double defaultFont = 11.0;
 
   // 18 accent options
   static const List<AccentOption> accents = [
@@ -42,16 +43,20 @@ class AppProvider extends ChangeNotifier {
     AccentOption('माणिक्य', Color(0xFF9C174D), Color(0xFFFF5C93)),
   ];
 
-  // 1. यहाँ डिफ़ॉल्ट मोड को हमेशा के लिए लाइट (उजाला) कर दिया है
   ThemeMode _themeMode = ThemeMode.light;
   double _fontSize = defaultFont;
+  final ValueNotifier<double> fontSizePreview = ValueNotifier(defaultFont);
   int _accentIndex = 0;
   bool _loaded = false;
+  bool _fontSizeApplying = false;
+  double? _queuedPreviewFontSize;
+  bool _previewFrameScheduled = false;
 
   ThemeMode get themeMode => _themeMode;
   double get fontSize => _fontSize;
   int get accentIndex => _accentIndex;
   bool get loaded => _loaded;
+  bool get fontSizeApplying => _fontSizeApplying;
   AccentOption get accent => accents[_accentIndex];
 
   bool isDark(BuildContext context) {
@@ -68,33 +73,18 @@ class AppProvider extends ChangeNotifier {
   Future<void> _load() async {
     final p = await SharedPreferences.getInstance();
 
-    final mode = p.getString('themeMode') ?? 'light';
-    _themeMode = switch (mode) {
-      'dark' => ThemeMode.dark,
-      'system' => ThemeMode.system,
-      _ => ThemeMode.light,
-    };
-    _fontSize = (p.getDouble('fontSize') ?? defaultFont)
-        .clamp(minFont, maxFont)
-        .toDouble();
-    _accentIndex = (p.getInt('accentIndex') ?? 0)
-        .clamp(0, accents.length - 1)
-        .toInt();
+    await p.remove('themeMode');
+    await p.remove('accentIndex');
+    _themeMode = ThemeMode.light;
+    _fontSize = defaultFont;
+    fontSizePreview.value = _fontSize;
+    _accentIndex = 0;
     _loaded = true;
     notifyListeners();
   }
 
   Future<void> _save() async {
-    final p = await SharedPreferences.getInstance();
-    await p.setString(
-        'themeMode',
-        switch (_themeMode) {
-          ThemeMode.light => 'light',
-          ThemeMode.system => 'system',
-          _ => 'dark',
-        });
-    await p.setDouble('fontSize', _fontSize);
-    await p.setInt('accentIndex', _accentIndex);
+    
   }
 
   void setThemeMode(ThemeMode mode) {
@@ -110,8 +100,73 @@ class AppProvider extends ChangeNotifier {
   }
 
   void setFontSize(double v) {
-    _fontSize = v.clamp(minFont, maxFont).toDouble();
+    final next = v.clamp(minFont, maxFont).toDouble();
+    if (next == _fontSize) return;
+    _fontSize = next;
+    fontSizePreview.value = next;
     _save();
     notifyListeners();
+  }
+
+  void resetFontSize(double v) {
+    final next = v.clamp(minFont, maxFont).toDouble();
+    _queuedPreviewFontSize = null;
+    _fontSize = next;
+    fontSizePreview.value = next;
+    notifyListeners();
+  }
+
+  void previewFontSize(double v) {
+    _queuedPreviewFontSize = v.clamp(minFont, maxFont).toDouble();
+    if (_previewFrameScheduled) return;
+
+    _previewFrameScheduled = true;
+    SchedulerBinding.instance.scheduleFrameCallback((_) {
+      _previewFrameScheduled = false;
+      final next = _queuedPreviewFontSize;
+      _queuedPreviewFontSize = null;
+      if (next != null && next != fontSizePreview.value) {
+        fontSizePreview.value = next;
+      }
+    });
+  }
+
+  void commitFontSize(double v) {
+    final raw = v.clamp(minFont, maxFont).toDouble();
+    final next = (raw * 2).roundToDouble() / 2;
+    _queuedPreviewFontSize = null;
+    if (next != fontSizePreview.value) {
+      fontSizePreview.value = next;
+    }
+    if (next != _fontSize) {
+      _fontSize = next;
+      notifyListeners();
+    }
+    _save();
+  }
+
+  Future<void> commitFontSizeWithLoading(double v) async {
+    final raw = v.clamp(minFont, maxFont).toDouble();
+    final next = (raw * 2).roundToDouble() / 2;
+    if (next == _fontSize) {
+      if (next != fontSizePreview.value) {
+        fontSizePreview.value = next;
+      }
+      return;
+    }
+
+    _fontSizeApplying = true;
+    notifyListeners();
+    await Future<void>.delayed(const Duration(milliseconds: 180));
+    commitFontSize(next);
+    await Future<void>.delayed(const Duration(milliseconds: 420));
+    _fontSizeApplying = false;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    fontSizePreview.dispose();
+    super.dispose();
   }
 }

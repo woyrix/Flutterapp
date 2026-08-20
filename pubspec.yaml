@@ -24,6 +24,7 @@ dependencies:
 
   # Open pre-filled email composer from feedback form
   url_launcher: ^6.3.1
+  share_plus: ^10.1.2
 
   cupertino_icons: ^1.0.8
 
@@ -40,6 +41,7 @@ flutter:
     - assets/images/
     - assets/images/sidebar/
     - assets/images/gallery/
+    - assets/images/upload/
     # ─────────────────────────────────────────────────────────────────────
     # TO ADD YOUR ASSETS:
     #   Logo       →  assets/images/logo.png

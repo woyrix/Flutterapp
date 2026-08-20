@@ -1,10 +1,4 @@
-// lib/screens/bookmarks_screen.dart
-//
-// FIX — Bookmark navigation no longer causes a black screen.
-// Pattern: Navigator.pop() the BookmarksScreen, then Navigator.pop() the
-// Drawer (if still open), THEN update the provider.
-// We let the caller (AppDrawer) decide how many pops to do, and just expose
-// a callback.
+
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';

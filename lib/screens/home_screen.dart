@@ -9,11 +9,26 @@ import '../providers/reader_provider.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../widgets/font_size_slider.dart';
-import '../widgets/search_overlay.dart';
+import 'browse_search_screen.dart';
 import 'reader_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<AppProvider>().resetFontSize(AppProvider.defaultFont);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,22 +54,6 @@ class HomeScreen extends StatelessWidget {
           children: [
             Column(
               children: [
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeIn,
-                  transitionBuilder: (child, anim) => FadeTransition(
-                    opacity: anim,
-                    child: SizeTransition(
-                      sizeFactor: anim,
-                      axisAlignment: -1,
-                      child: child,
-                    ),
-                  ),
-                  child: reader.searchActive
-                      ? const SearchOverlay(key: ValueKey('search'))
-                      : const SizedBox.shrink(key: ValueKey('none')),
-                ),
                 const Expanded(child: ReaderScreen()),
               ],
             ),
@@ -81,6 +80,7 @@ class HomeScreen extends StatelessWidget {
                     : const SizedBox.shrink(key: ValueKey('no_slider')),
               ),
             ),
+            const Positioned.fill(child: _FontSizeApplyingOverlay()),
           ],
         ),
       ),
@@ -137,13 +137,9 @@ class HomeScreen extends StatelessWidget {
                     );
                   },
                   child: _HomeAppBarTitle(
-                    key: ValueKey(
-                      '${reader.readingHeaderActive}-${reader.currentPage.title}',
-                    ),
-                    title: reader.readingHeaderActive
-                        ? reader.currentPage.title
-                        : 'प्रियतम काव्य',
-                    compact: reader.readingHeaderActive,
+                    key: const ValueKey('home-title'),
+                    title: 'प्रियतम काव्य',
+                    compact: false,
                     color: cs.primary,
                   ),
                 ),
@@ -154,12 +150,20 @@ class HomeScreen extends StatelessWidget {
       ),
       actions: [
         _AnimatedIconButton(
-          tooltip: reader.searchActive ? 'बंद करें' : 'खोजें',
-          icon:
-              reader.searchActive ? Icons.close_rounded : Icons.search_rounded,
-          color:
-              reader.searchActive ? cs.primary : cs.primary.withOpacity(0.45),
-          onTap: () => context.read<ReaderProvider>().toggleSearch(),
+          tooltip: 'खोजें',
+          icon: Icons.search_rounded,
+          color: cs.primary.withOpacity(0.45),
+          onTap: () {
+            context.read<ReaderProvider>().hideSlider();
+            showModalBottomSheet<void>(
+              context: context,
+              isScrollControlled: true,
+              useSafeArea: true,
+              backgroundColor: Colors.transparent,
+              barrierColor: Colors.black.withOpacity(0.28),
+              builder: (_) => const BrowseSearchScreen(),
+            );
+          },
         ),
         _AnimatedIconButton(
           tooltip: isFav ? 'बुकमार्क हटाएँ' : 'पृष्ठ सहेजें',
@@ -204,6 +208,54 @@ class HomeScreen extends StatelessWidget {
         duration: const Duration(seconds: 2),
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       ));
+  }
+}
+
+class _FontSizeApplyingOverlay extends StatelessWidget {
+  const _FontSizeApplyingOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = context.select<AppProvider, bool>(
+      (app) => app.fontSizeApplying,
+    );
+    final cs = Theme.of(context).colorScheme;
+
+    return IgnorePointer(
+      ignoring: !visible,
+      child: AnimatedOpacity(
+        opacity: visible ? 1 : 0,
+        duration: const Duration(milliseconds: 120),
+        child: Container(
+          color: Colors.black.withOpacity(0.16),
+          alignment: Alignment.center,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: cs.surface,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.18),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: SizedBox(
+                width: 34,
+                height: 34,
+                child: CircularProgressIndicator(
+                  strokeWidth: 3,
+                  color: cs.primary,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

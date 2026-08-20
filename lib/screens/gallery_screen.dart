@@ -7,10 +7,27 @@ import 'package:photo_view/photo_view_gallery.dart';
 
 import '../data/gallery_data.dart';
 import '../navigation/home_scaffold_controller.dart';
-import '../utils/image_download_helper.dart';
+import '../utils/gallery_protection.dart';
 
-class GalleryScreen extends StatelessWidget {
+class GalleryScreen extends StatefulWidget {
   const GalleryScreen({super.key});
+
+  @override
+  State<GalleryScreen> createState() => _GalleryScreenState();
+}
+
+class _GalleryScreenState extends State<GalleryScreen> {
+  @override
+  void initState() {
+    super.initState();
+    GalleryProtection.enable();
+  }
+
+  @override
+  void dispose() {
+    GalleryProtection.disable();
+    super.dispose();
+  }
 
   void _closeToDrawer(BuildContext context) {
     Navigator.of(context).pop();
@@ -37,44 +54,52 @@ class GalleryScreen extends StatelessWidget {
             onPressed: () => _closeToDrawer(context),
           ),
         ),
-        body: LayoutBuilder(
-          builder: (context, constraints) {
-            final narrow = constraints.maxWidth < 430;
-            return GridView.builder(
-              padding: EdgeInsets.fromLTRB(
-                narrow ? 12 : 16,
-                14,
-                narrow ? 12 : 16,
-                24,
-              ),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: narrow ? 1 : 2,
-                mainAxisSpacing: 18,
-                crossAxisSpacing: 14,
-                childAspectRatio: narrow ? 0.78 : 0.6,
-              ),
-              itemCount: GalleryData.items.length,
-              itemBuilder: (context, i) {
-                final item = GalleryData.items[i];
-                return _GalleryTile(
-                  item: item,
-                  index: i,
-                  cs: cs,
-                  onTap: () => Navigator.of(context).push(
-                    PageRouteBuilder(
-                      transitionDuration: const Duration(milliseconds: 320),
-                      reverseTransitionDuration:
-                          const Duration(milliseconds: 220),
-                      pageBuilder: (_, __, ___) =>
-                          _FullScreen(items: GalleryData.items, initial: i),
-                      transitionsBuilder: (_, a, __, child) =>
-                          FadeTransition(opacity: a, child: child),
-                    ),
-                  ),
-                );
-              },
-            );
-          },
+        body: ValueListenableBuilder<bool>(
+          valueListenable: GalleryProtection.captured,
+          builder: (context, isScreenCaptured, _) => isScreenCaptured
+              ? const ColoredBox(color: Colors.black)
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    final narrow = constraints.maxWidth < 430;
+                    return GridView.builder(
+                      padding: EdgeInsets.fromLTRB(
+                        narrow ? 12 : 16,
+                        14,
+                        narrow ? 12 : 16,
+                        24,
+                      ),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: narrow ? 1 : 2,
+                        mainAxisSpacing: 18,
+                        crossAxisSpacing: 14,
+                        childAspectRatio: narrow ? 0.78 : 0.6,
+                      ),
+                      itemCount: GalleryData.items.length,
+                      itemBuilder: (context, i) {
+                        final item = GalleryData.items[i];
+                        return _GalleryTile(
+                          item: item,
+                          index: i,
+                          cs: cs,
+                          onTap: () => Navigator.of(context).push(
+                            PageRouteBuilder(
+                              transitionDuration:
+                                  const Duration(milliseconds: 320),
+                              reverseTransitionDuration:
+                                  const Duration(milliseconds: 220),
+                              pageBuilder: (_, __, ___) => _FullScreen(
+                                items: GalleryData.items,
+                                initial: i,
+                              ),
+                              transitionsBuilder: (_, a, __, child) =>
+                                  FadeTransition(opacity: a, child: child),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
         ),
       ),
     );
@@ -198,7 +223,6 @@ class _FullScreen extends StatefulWidget {
 
 class _FullScreenState extends State<_FullScreen> {
   late int _current;
-  bool _isDownloading = false;
 
   @override
   void initState() {
@@ -210,143 +234,109 @@ class _FullScreenState extends State<_FullScreen> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final item = widget.items[_current];
-    final canDownload = !item.isPlaceholder && item.assetPath != null;
-
     return Scaffold(
       backgroundColor: cs.surface,
       appBar: AppBar(
         leading: const CloseButton(),
-        actions: [
-          IconButton(
-            tooltip: 'Download',
-            onPressed: canDownload && !_isDownloading ? _downloadCurrent : null,
-            icon: _isDownloading
-                ? SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: cs.primary,
-                    ),
-                  )
-                : const Icon(Icons.download_rounded),
-          ),
-          const SizedBox(width: 6),
-        ],
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ColoredBox(
-              color: Colors.black,
-              child: PhotoViewGallery.builder(
-                pageController: PageController(initialPage: widget.initial),
-                itemCount: widget.items.length,
-                onPageChanged: (i) => setState(() => _current = i),
-                scrollPhysics: const BouncingScrollPhysics(),
-                loadingBuilder: (context, event) => Center(
-                  child: CircularProgressIndicator(
-                    color: const Color(0xFFE8B84B),
-                    value: event == null || event.expectedTotalBytes == null
-                        ? null
-                        : event.cumulativeBytesLoaded /
-                            event.expectedTotalBytes!,
-                  ),
-                ),
-                backgroundDecoration: const BoxDecoration(
-                  color: Colors.black,
-                ),
-                builder: (context, i) {
-                  final galleryItem = widget.items[i];
-                  if (galleryItem.isPlaceholder ||
-                      galleryItem.assetPath == null) {
-                    return PhotoViewGalleryPageOptions.customChild(
-                      heroAttributes:
-                          PhotoViewHeroAttributes(tag: 'gallery_$i'),
-                      child: Center(
-                        child:
-                            _Placeholder(color: galleryItem.placeholderColor),
-                      ),
-                    );
-                  }
-                  return PhotoViewGalleryPageOptions(
-                    imageProvider: AssetImage(galleryItem.assetPath!),
-                    heroAttributes: PhotoViewHeroAttributes(tag: 'gallery_$i'),
-                    minScale: PhotoViewComputedScale.contained,
-                    maxScale: PhotoViewComputedScale.covered * 3,
-                    initialScale: PhotoViewComputedScale.contained,
-                  );
-                },
-              ),
-            ),
-          ),
-          SafeArea(
-            top: false,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-              decoration: BoxDecoration(
-                color: cs.surface,
-                border: Border(
-                  top: BorderSide(color: cs.outline.withOpacity(0.12)),
-                ),
-              ),
-              child: Row(
+      body: ValueListenableBuilder<bool>(
+        valueListenable: GalleryProtection.captured,
+        builder: (context, isScreenCaptured, _) => isScreenCaptured
+            ? const ColoredBox(color: Colors.black)
+            : Column(
                 children: [
-                  Text(
-                    '${_current + 1}/${widget.items.length}',
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: cs.primary,
-                          fontWeight: FontWeight.w800,
-                        ),
-                  ),
-                  const SizedBox(width: 12),
                   Expanded(
-                    child: Text(
-                      item.title,
-                      locale: const Locale('hi', 'IN'),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.notoSerifDevanagari(
-                        color: cs.onSurface,
-                        fontSize: 13,
-                        height: 1.25,
-                        fontWeight: FontWeight.w700,
+                    child: ColoredBox(
+                      color: Colors.black,
+                      child: PhotoViewGallery.builder(
+                        pageController:
+                            PageController(initialPage: widget.initial),
+                        itemCount: widget.items.length,
+                        onPageChanged: (i) => setState(() => _current = i),
+                        scrollPhysics: const BouncingScrollPhysics(),
+                        loadingBuilder: (context, event) => Center(
+                          child: CircularProgressIndicator(
+                            color: const Color(0xFFE8B84B),
+                            value: event == null ||
+                                    event.expectedTotalBytes == null
+                                ? null
+                                : event.cumulativeBytesLoaded /
+                                    event.expectedTotalBytes!,
+                          ),
+                        ),
+                        backgroundDecoration: const BoxDecoration(
+                          color: Colors.black,
+                        ),
+                        builder: (context, i) {
+                          final galleryItem = widget.items[i];
+                          if (galleryItem.isPlaceholder ||
+                              galleryItem.assetPath == null) {
+                            return PhotoViewGalleryPageOptions.customChild(
+                              heroAttributes:
+                                  PhotoViewHeroAttributes(tag: 'gallery_$i'),
+                              child: Center(
+                                child: _Placeholder(
+                                    color: galleryItem.placeholderColor),
+                              ),
+                            );
+                          }
+                          return PhotoViewGalleryPageOptions(
+                            imageProvider: AssetImage(galleryItem.assetPath!),
+                            heroAttributes:
+                                PhotoViewHeroAttributes(tag: 'gallery_$i'),
+                            minScale: PhotoViewComputedScale.contained,
+                            maxScale: PhotoViewComputedScale.covered * 3,
+                            initialScale: PhotoViewComputedScale.contained,
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  SafeArea(
+                    top: false,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+                      decoration: BoxDecoration(
+                        color: cs.surface,
+                        border: Border(
+                          top: BorderSide(color: cs.outline.withOpacity(0.12)),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Text(
+                            '${_current + 1}/${widget.items.length}',
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelLarge
+                                ?.copyWith(
+                                  color: cs.primary,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              item.title,
+                              locale: const Locale('hi', 'IN'),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.notoSerifDevanagari(
+                                color: cs.onSurface,
+                                fontSize: 13,
+                                height: 1.25,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ],
               ),
-            ),
-          ),
-        ],
       ),
     );
-  }
-
-  Future<void> _downloadCurrent() async {
-    final messenger = ScaffoldMessenger.of(context);
-    final item = widget.items[_current];
-    final assetPath = item.assetPath;
-    if (item.isPlaceholder || assetPath == null) return;
-
-    setState(() => _isDownloading = true);
-    try {
-      final savedTo = await downloadAssetImage(
-        assetPath: assetPath,
-        title: item.title,
-      );
-      if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text('Downloaded: $savedTo')),
-      );
-    } catch (_) {
-      if (!mounted) return;
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Download failed. Please try again.')),
-      );
-    } finally {
-      if (mounted) setState(() => _isDownloading = false);
-    }
   }
 }

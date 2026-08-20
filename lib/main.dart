@@ -39,6 +39,10 @@ class PriyatamKavyaApp extends StatelessWidget {
           themeMode: app.themeMode,
           themeAnimationDuration: const Duration(milliseconds: 180),
           themeAnimationCurve: Curves.easeOutCubic,
+          builder: (context, child) => DefaultTextStyle.merge(
+            textAlign: TextAlign.center,
+            child: child ?? const SizedBox.shrink(),
+          ),
           home: const HomeScreen(),
         ),
       ),
